@@ -31,12 +31,9 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # Needed for git-describe to do anything useful, the safe directory
-      # workaround is needed for https://github.com/actions/runner/issues/2033
       - name: Fetch all git history
         run: |
-          git config --global --add safe.directory /__w/yabridge/yabridge
-          git config --global --add safe.directory /github/workspace
+          git config --global --add safe.directory '*'
           git fetch --force --prune --tags --unshallow
       - name: Determine build archive name
         run: |
@@ -45,47 +42,23 @@ jobs:
         run: |
           mkdir -p /tmp/prefix
           export WINEPREFIX=/tmp/prefix
-
-          # In this version we don't need to statically link libstdc++ since
-          # Ubuntu 20.04 and similar distros will ship with a version that's
-          # compatible with GCC 10, even if that's not the default GCC version
           meson setup build --buildtype=release --cross-file=cross-wine.conf --unity=on --unity-size=10000 -Dbitbridge=true
           ninja -C build
-      - name: Strip remaining debug symbols
-        run: strip build/libyabridge{,-chainloader}-{clap,vst2,vst3}.so build/yabridge-host{,-32}.exe.so
-      - name: Create an archive for the binaries
-        run: |
-          mkdir yabridge
-          cp build/libyabridge{,-chainloader}-{clap,vst2,vst3}.so build/yabridge-host{,-32}.exe{,.so} yabridge
-          cp CHANGELOG.md README.md yabridge
-
-          tar -caf "$ARCHIVE_NAME" yabridge
-          rm -rf yabridge
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARCHIVE_NAME }}
-          path: ${{ env.ARCHIVE_NAME }}
 
   build-yabridgectl:
     name: Build yabridgectl
     runs-on: ubuntu-latest
     container: robbert/docker-yabridge:focal
-    outputs:
-      artifact-name: ${{ env.ARCHIVE_NAME }}
-    defaults:
-      run:
-        working-directory: tools/yabridgectl
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
           fetch-depth: 0
-      # Needed for git-describe to do anything useful, the safe directory
-      # workaround is needed for https://github.com/actions/runner/issues/2033
+
       - name: Fetch all git history
         run: |
-          git config --global --add safe.directory /__w/yabridge/yabridge
+          git config --global --add safe.directory '*'
           git fetch --force --prune --tags --unshallow
+
       - name: Determine build archive name
         run: |
           echo "ARCHIVE_NAME=yabridgectl-$(git describe --always).tar.gz" >> "$GITHUB_ENV"
